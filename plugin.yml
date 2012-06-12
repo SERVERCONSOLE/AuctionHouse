@@ -1,0 +1,13 @@
+name: CrystalAuction
+main: com.CrystalCoding.CrystalAuction.CrystalAuction
+version: 1.0
+website: athcraft.com
+author: baseball435
+description: >
+             Allows players to sell their items
+commands:
+  auction:
+    description: Stops players from logging in.
+    usage: |
+           /<command>
+           Example: /<command> sell 5 50
