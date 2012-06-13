@@ -50,6 +50,8 @@ public class Auction {
 	
 	public void remove() {
 		AuctionHandler.toRemove.add(this);
+		if (AuctionHandler.useSigns())
+			CrystalAuction.removeSignById(id);
 	}
 	
 	public int getTicks() {

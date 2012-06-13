@@ -1,14 +1,17 @@
 package com.CrystalCoding.CrystalAuction;
 
+import java.util.ArrayList;
 import java.util.logging.Logger;
-
-import net.minecraft.server.Block;
 
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.Server;
+import org.bukkit.block.Block;
+import org.bukkit.block.Sign;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.craftbukkit.block.CraftBlockState;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.PluginDescriptionFile;
@@ -23,8 +26,9 @@ public class CrystalAuction extends JavaPlugin{
 	public static Server s;
 	public static final Logger log = Logger.getLogger("Minecraft");
 	public static AuctionHandler auctionHandler;
-	public static int totalAuctionsSet = 0;
-	public static int selectionTool = 280;
+	public static int totalAuctionsSet = 0; //ids
+	public static int selectionTool = 280; //stick
+	public static ArrayList<AuctionSign> signs = new ArrayList<AuctionSign>(); //not working with current bukkit
 	
 	public void onDisable() {
 	}
@@ -57,58 +61,81 @@ public class CrystalAuction extends JavaPlugin{
 			Player p = (Player) sender;
 			if (comm.equalsIgnoreCase("auction")) {
 				if (canAuction(p.getName())) {
-					if (myArgs[0].equalsIgnoreCase("setbounds")) {
-						try {
-							if (p.hasPermission("ca.setbounds")) {
-								if (CrystalPlayer.x1 != -1 && CrystalPlayer.y1 != -1 && CrystalPlayer.z1 != -1 && CrystalPlayer.x2 != -1 && CrystalPlayer.y2 != -1 && CrystalPlayer.z2 != -1) {
-									AuctionHandler.setLocation(CrystalPlayer.x1, CrystalPlayer.y1, CrystalPlayer.z1, CrystalPlayer.x2, CrystalPlayer.y2, CrystalPlayer.z2);
-									p.sendMessage(ChatColor.GREEN + "The new bounds where players can use Crystal Auction is now set.");
+					if (myArgs.length >= 1) {
+						if (myArgs[0].equalsIgnoreCase("setbounds")) {
+							try {
+								if (p.hasPermission("ca.setbounds")) {
+									if (CrystalPlayer.x1 != -1 && CrystalPlayer.y1 != -1 && CrystalPlayer.z1 != -1 && CrystalPlayer.x2 != -1 && CrystalPlayer.y2 != -1 && CrystalPlayer.z2 != -1) {
+										AuctionHandler.setLocation(CrystalPlayer.x1, CrystalPlayer.y1, CrystalPlayer.z1, CrystalPlayer.x2, CrystalPlayer.y2, CrystalPlayer.z2);
+										p.sendMessage(ChatColor.GREEN + "The new bounds where players can use Crystal Auction is now set.");
+									} else {
+										p.sendMessage(ChatColor.GREEN + "Please select the bounds by left and right clicking with the stick.");
+									}
 								} else {
-									p.sendMessage(ChatColor.GREEN + "Please select the bounds by left and right clicking with the stick.");
+									p.sendMessage(ChatColor.RED + "You do not have permission to use this command.");
 								}
-							} else {
-								p.sendMessage(ChatColor.RED + "You do not have permission to use this command.");
+								return true;
+							} catch (Exception e) {
+								e.printStackTrace();
 							}
 							return true;
-						} catch (Exception e) {
-							e.printStackTrace();
-						}
-						return true;
-					} else if (insideAuctionArea(p)) {
-						try {
-							int price = -1;
-							int amount = -1;
-							ItemStack is = p.getInventory().getItemInHand();
-							if (myArgs[0].equalsIgnoreCase("info") || myArgs[0].equalsIgnoreCase("help")) {
-								showHelp(p);
+						} else if (myArgs[0].equalsIgnoreCase("setsigns")) {
+							try {
+								if (p.hasPermission("ca.setbounds")) {
+									if (CrystalPlayer.x1 == CrystalPlayer.x2 || CrystalPlayer.z1 == CrystalPlayer.z2) {
+										AuctionHandler.setSignLocation(CrystalPlayer.x1, CrystalPlayer.y1, CrystalPlayer.z1, CrystalPlayer.x2, CrystalPlayer.y2, CrystalPlayer.z2);
+										p.sendMessage(ChatColor.GREEN + "The new bounds where the signs are put is now set.");
+									} else {
+										p.sendMessage(ChatColor.RED + "Please select the bounds by left and right clicking with the stick.");
+									}
+								} else {
+									p.sendMessage(ChatColor.RED + "You do not have permission to use this command.");
+								}
 								return true;
-							} else if (myArgs[0].equalsIgnoreCase("sell")) {
-								if (myArgs.length == 3) {
-									if (isNumeric(myArgs[1])) {
-										price = Integer.parseInt(myArgs[1]);
-										if (isNumeric(myArgs[2])) {
-											amount = Integer.parseInt(myArgs[2]);
-											if (is.getAmount() >= amount && amount <= 64) {
-												double money = new Accounts().get(p.getName()).getHoldings().getBalance();
-												if (money - (price * .1) >= 0) {
-													totalAuctionsSet++;
-													ItemStack clone = is.clone();
-													clone.setAmount(amount);
-													p.getInventory().removeItem(is);
-													new Auction(amount, price, clone, p, totalAuctionsSet);
-													ItemStack clone2 = clone.clone();
-													clone2.setAmount(is.getAmount() - amount);
-													p.getInventory().addItem(clone2);
-													Account account = new Accounts().get(p.getName());
-													account.getHoldings().subtract(((int) price * .1));
-													s.broadcastMessage(ChatColor.GOLD + p.getName() + " is selling " + amount + " " + getItemName(is.getTypeId()) + " for $" + price + "! Buy at ID: " + totalAuctionsSet + ".");
-													p.sendMessage(ChatColor.GREEN + "Your auction was successfully made and there was a tax price of $" + ((int) price * .1) + "!");
-													return true;
+							} catch (Exception e) {
+								e.printStackTrace();
+							}
+							return true;
+						} else if (insideAuctionArea(p)) {
+							try {
+								int price = -1;
+								int amount = -1;
+								ItemStack is = p.getInventory().getItemInHand();
+								if (myArgs[0].equalsIgnoreCase("info") || myArgs[0].equalsIgnoreCase("help")) {
+									showHelp(p);
+									return true;
+								} else if (myArgs[0].equalsIgnoreCase("sell")) {
+									if (myArgs.length == 3) {
+										if (isNumeric(myArgs[1])) {
+											price = Integer.parseInt(myArgs[1]);
+											if (isNumeric(myArgs[2])) {
+												amount = Integer.parseInt(myArgs[2]);
+												if (is.getAmount() >= amount && amount <= 64) {
+													double money = new Accounts().get(p.getName()).getHoldings().getBalance();
+													if (money - (price * .1) >= 0) {
+														totalAuctionsSet++;
+														ItemStack clone = is.clone();
+														clone.setAmount(amount);
+														p.getInventory().removeItem(is);
+														new Auction(amount, price, clone, p, totalAuctionsSet);
+														ItemStack clone2 = clone.clone();
+														clone2.setAmount(is.getAmount() - amount);
+														p.getInventory().addItem(clone2);
+														Account account = new Accounts().get(p.getName());
+														account.getHoldings().subtract(((int) price * .1));
+														s.broadcastMessage(ChatColor.GOLD + p.getName() + " is selling " + amount + " " + getItemName(is.getTypeId()) + " for $" + price + "! Buy at ID: " + totalAuctionsSet + ".");
+														if (AuctionHandler.useSigns())
+															putSign(totalAuctionsSet, getItemName(is.getTypeId()), price, amount, p);													
+														p.sendMessage(ChatColor.GREEN + "Your auction was successfully made and there was a tax price of $" + ((int) price * .1) + "!");
+														return true;
+													} else {
+														p.sendMessage(ChatColor.RED + "You don't have enough money to pay for tax of $" + (price * .1) + "!");
+													}
 												} else {
-													p.sendMessage(ChatColor.RED + "You don't have enough money to pay for tax of $" + (price * .1) + "!");
+													p.sendMessage(ChatColor.RED + "Make sure you have enough of the item to sell!");
 												}
 											} else {
-												p.sendMessage(ChatColor.RED + "Make sure you have enough of the item to sell!");
+												p.sendMessage(ChatColor.RED + "Use /auction sell <price> <amount>");
 											}
 										} else {
 											p.sendMessage(ChatColor.RED + "Use /auction sell <price> <amount>");
@@ -116,117 +143,118 @@ public class CrystalAuction extends JavaPlugin{
 									} else {
 										p.sendMessage(ChatColor.RED + "Use /auction sell <price> <amount>");
 									}
-								} else {
-									p.sendMessage(ChatColor.RED + "Use /auction sell <price> <amount>");
-								}
-								return true;
-							} else if (myArgs[0].equalsIgnoreCase("buy")) {
-								try {
-									Account account = new Accounts().get(p.getName());
-									double money = account.getHoldings().getBalance();
-									Auction a = AuctionHandler.getAuctionById(Integer.parseInt(myArgs[1]));
-									if (a != null) {
-										if (!a.getPlayer().getName().equalsIgnoreCase(p.getName())) {
-											if (money >= a.getPrice()) {
-												p.getInventory().addItem(a.getItemStack());
-												account.getHoldings().subtract(a.getPrice());
-												Player seller = a.getPlayer();
-												new Accounts().get(seller.getName()).getHoldings().add(a.getPrice());
-												p.sendMessage(ChatColor.GREEN + "You have successfully bought " + a.getAmount() + " " + getItemName(a.getItemStack().getTypeId()) + " for $" + a.getPrice() + "!");
-												seller.sendMessage(ChatColor.GOLD + p.getName() + " has bought your " + getItemName(a.getItemStack().getTypeId()) + " for $" + a.getPrice() + "!");
-												a.remove();
+									return true;
+								} else if (myArgs[0].equalsIgnoreCase("buy")) {
+									try {
+										Account account = new Accounts().get(p.getName());
+										double money = account.getHoldings().getBalance();
+										Auction a = AuctionHandler.getAuctionById(Integer.parseInt(myArgs[1]));
+										if (a != null) {
+											if (!a.getPlayer().getName().equalsIgnoreCase(p.getName())) {
+												if (money >= a.getPrice()) {
+													p.getInventory().addItem(a.getItemStack());
+													account.getHoldings().subtract(a.getPrice());
+													Player seller = a.getPlayer();
+													new Accounts().get(seller.getName()).getHoldings().add(a.getPrice());
+													p.sendMessage(ChatColor.GREEN + "You have successfully bought " + a.getAmount() + " " + getItemName(a.getItemStack().getTypeId()) + " for $" + a.getPrice() + "!");
+													seller.sendMessage(ChatColor.GOLD + p.getName() + " has bought your " + getItemName(a.getItemStack().getTypeId()) + " for $" + a.getPrice() + "!");
+													a.remove();
+												} else {
+													p.sendMessage(ChatColor.RED + "You don't have enough money to afford that!");
+												}
 											} else {
-												p.sendMessage(ChatColor.RED + "You don't have enough money to afford that!");
+												p.sendMessage(ChatColor.RED + "You can't buy your own item!");
 											}
 										} else {
-											p.sendMessage(ChatColor.RED + "You can't buy your own item!");
+											p.sendMessage(ChatColor.RED + "That auction does not exist!");
 										}
-									} else {
-										p.sendMessage(ChatColor.RED + "That auction does not exist!");
+									} catch (Exception e) {
+										e.printStackTrace();
 									}
-								} catch (Exception e) {
-									e.printStackTrace();
-								}
-								return true;
-							} else if (myArgs != null && myArgs[0].equalsIgnoreCase("list")) {
-								if (myArgs.length > 1) {
-									if (myArgs[1].equalsIgnoreCase("item")) {
-										if (myArgs.length > 2) {
-											int count = 0;
-											for (Auction a : AuctionHandler.auctions) {
-												if (!isNumeric(myArgs[2])) {
-													if (getItemName(a.getItemStack().getTypeId()).toLowerCase().indexOf((myArgs[2].replace("_", " ").toLowerCase())) > -1) {
-														p.sendMessage(ChatColor.AQUA + "Item: " + getItemName(a.getItemStack().getTypeId()) + " - Amount: " + a.getAmount() + " - Price: $" + a.getPrice() + " - Id: " + a.getId());
-														count++;
-													}
-												} else if (isNumeric(myArgs[2])) {
-													if (a.getItemStack().getTypeId() == Integer.parseInt(myArgs[2])) {
-														p.sendMessage(ChatColor.AQUA + "Item: " + getItemName(a.getItemStack().getTypeId()) + " - Amount: " + a.getAmount() + " - Price: $" + a.getPrice() + " - Id: " + a.getId());
-														count++;
+									return true;
+								} else if (myArgs != null && myArgs[0].equalsIgnoreCase("list")) {
+									if (myArgs.length > 1) {
+										if (myArgs[1].equalsIgnoreCase("item")) {
+											if (myArgs.length > 2) {
+												int count = 0;
+												for (Auction a : AuctionHandler.auctions) {
+													if (!isNumeric(myArgs[2])) {
+														if (getItemName(a.getItemStack().getTypeId()).toLowerCase().indexOf((myArgs[2].replace("_", " ").toLowerCase())) > -1) {
+															p.sendMessage(ChatColor.AQUA + "Item: " + getItemName(a.getItemStack().getTypeId()) + " - Amount: " + a.getAmount() + " - Price: $" + a.getPrice() + " - Id: " + a.getId());
+															count++;
+														}
+													} else if (isNumeric(myArgs[2])) {
+														if (a.getItemStack().getTypeId() == Integer.parseInt(myArgs[2])) {
+															p.sendMessage(ChatColor.AQUA + "Item: " + getItemName(a.getItemStack().getTypeId()) + " - Amount: " + a.getAmount() + " - Price: $" + a.getPrice() + " - Id: " + a.getId());
+															count++;
+														}
 													}
 												}
+												if (count == 0)
+													p.sendMessage(ChatColor.AQUA + "No auctions are selling an item by that name/id!");
+												return true;
+											} else {
+												p.sendMessage(ChatColor.AQUA + "Please use /auction info");
+												return true;
 											}
+										} else if (myArgs[1].equalsIgnoreCase("mine")) {
+											int count = 0;
+											for (Auction a : AuctionHandler.auctions) {
+												if (a.getPlayer().getName().equalsIgnoreCase(p.getName())) {
+													p.sendMessage(ChatColor.AQUA + "Item: " + getItemName(a.getItemStack().getTypeId()) + " - Amount: " + a.getAmount() + " - Price: $" + a.getPrice() + " - Id: " + a.getId());
+													count++;
+												}
+											}
+											
 											if (count == 0)
-												p.sendMessage(ChatColor.AQUA + "No auctions are selling an item by that name/id!");
-											return true;
-										} else {
-											p.sendMessage(ChatColor.AQUA + "Please use /auction info");
+												p.sendMessage(ChatColor.AQUA + "You don't have any auctions!");
 											return true;
 										}
-									} else if (myArgs[1].equalsIgnoreCase("mine")) {
+									} else {
 										int count = 0;
+										
 										for (Auction a : AuctionHandler.auctions) {
-											if (a.getPlayer().getName().equalsIgnoreCase(p.getName())) {
+											if (!a.getPlayer().getName().equalsIgnoreCase(p.getName())) {
 												p.sendMessage(ChatColor.AQUA + "Item: " + getItemName(a.getItemStack().getTypeId()) + " - Amount: " + a.getAmount() + " - Price: $" + a.getPrice() + " - Id: " + a.getId());
 												count++;
 											}
 										}
 										
 										if (count == 0)
-											p.sendMessage(ChatColor.AQUA + "You don't have any auctions!");
+											p.sendMessage(ChatColor.AQUA + "There are no auctions at the moment.");
+										
 										return true;
 									}
-								} else {
-									int count = 0;
-									
-									for (Auction a : AuctionHandler.auctions) {
-										if (!a.getPlayer().getName().equalsIgnoreCase(p.getName())) {
-											p.sendMessage(ChatColor.AQUA + "Item: " + getItemName(a.getItemStack().getTypeId()) + " - Amount: " + a.getAmount() + " - Price: $" + a.getPrice() + " - Id: " + a.getId());
-											count++;
-										}
-									}
-									
-									if (count == 0)
-										p.sendMessage(ChatColor.AQUA + "There are no auctions at the moment.");
-									
-									return true;
-								}
-							} else if (myArgs[0].equalsIgnoreCase("cancel")) {
-								try {
-									Auction a = AuctionHandler.getAuctionById(Integer.parseInt(myArgs[1]));
-									if (a != null) {
-										if (a.getPlayer().getName().equalsIgnoreCase(p.getName())) {
-											a.cancel();
-											p.sendMessage(ChatColor.AQUA + "Your auction was canceled!");
+								} else if (myArgs[0].equalsIgnoreCase("cancel")) {
+									try {
+										Auction a = AuctionHandler.getAuctionById(Integer.parseInt(myArgs[1]));
+										if (a != null) {
+											if (a.getPlayer().getName().equalsIgnoreCase(p.getName())) {
+												a.cancel();
+												p.sendMessage(ChatColor.AQUA + "Your auction was canceled!");
+											} else {
+												p.sendMessage(ChatColor.AQUA + "That is not your auction!");
+											}
+												
 										} else {
-											p.sendMessage(ChatColor.AQUA + "That is not your auction!");
+											p.sendMessage(ChatColor.RED + "That auction does not exist!");
 										}
-											
-									} else {
-										p.sendMessage(ChatColor.RED + "That auction does not exist!");
+										return true;
+									} catch (Exception e) {
+										e.printStackTrace();
 									}
 									return true;
-								} catch (Exception e) {
-									e.printStackTrace();
 								}
-								return true;
+							} catch (Exception e) {
+								e.printStackTrace();
+								return true;					
 							}
-						} catch (Exception e) {
-							showHelp(p);
-							return true;					
+						} else {
+							p.sendMessage(ChatColor.RED + "You need to be in the Auction Area to use the Auction Commands!");
+							return true;
 						}
 					} else {
-						p.sendMessage(ChatColor.RED + "You need to be in the Auction Area to use the Auction Commands!");
+						showHelp(p);
 						return true;
 					}
 				} else {
@@ -243,8 +271,8 @@ public class CrystalAuction extends JavaPlugin{
 	}
 	
 	public static void showHelp(Player p) {
-		p.sendMessage(ChatColor.AQUA + "--------[ Crystal Auction ]--------");
-		p.sendMessage(ChatColor.AQUA + "------[ Made By Baseball435 ]--------");
+		p.sendMessage(ChatColor.AQUA + "------[ Athcraft - AuctionHouse ]------");
+		p.sendMessage(ChatColor.AQUA + "--------[ Made By Baseball435 ]--------");
 		p.sendMessage(ChatColor.GOLD + "The item you are holding will be the one sold.");
 		p.sendMessage(ChatColor.GOLD + "/auction sell <price> <amount> - Sets a new auction");
 		p.sendMessage(ChatColor.GOLD + "/auction buy <id> - Buys auction by their id");
@@ -271,6 +299,39 @@ public class CrystalAuction extends JavaPlugin{
 				return true;
 			}
 		return false;
+	}
+	
+	public static void putSign(int id, String item, int price, int amount, Player p) {
+		try {
+			String[] coords = AuctionHandler.loadConfigFile()[1].split(" ");
+			String offset = coords[3];
+			Block b = p.getWorld().getBlockAt(Integer.parseInt(coords[0]), Integer.parseInt(coords[1]), Integer.parseInt(coords[2]));
+			
+			if (offset.equalsIgnoreCase("x") && id != 1)
+				b = p.getWorld().getBlockAt(Integer.parseInt(coords[0]), Integer.parseInt(coords[1]), Integer.parseInt(coords[2]) + (id * 2) - 2);
+			else if (offset.equalsIgnoreCase("z") && id != 1)
+				b = p.getWorld().getBlockAt(Integer.parseInt(coords[0]) + (id * 2) - 2, Integer.parseInt(coords[1]), Integer.parseInt(coords[2]));
+			
+			b.setTypeId(68);
+			Sign s = (Sign) b.getState();
+				
+			if (offset.equalsIgnoreCase("x"))
+				s.getLocation().setZ(b.getLocation().getZ() + id - 1);
+			else if (offset.equalsIgnoreCase("z"))
+				s.getLocation().setX(b.getLocation().getX() + id - 1);
+				
+			s.update();
+			s.setLine(0, "ID: " + id);
+			s.setLine(1, item);
+			s.setLine(2, "P: " + price);
+			s.setLine(3, "A: " + amount + "");
+			s.update();
+			
+			new AuctionSign(p, item, id, price, amount, s);
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 	
 	public static boolean insideAuctionArea(Player p) {
@@ -300,6 +361,12 @@ public class CrystalAuction extends JavaPlugin{
 				inZ = true;
 		}
 		return inX && inZ;
+	}
+	
+	public static void removeSignById(int id) {
+		for (AuctionSign s : signs)
+			if (s.id == id)
+				s.p.getWorld().getBlockAt(s.s.getLocation()).setTypeId(0);
 	}
 	
 	public static String getItemName(int id) {
@@ -546,4 +613,23 @@ public class CrystalAuction extends JavaPlugin{
 		}
 		return "";
 	}
+}
+
+class AuctionSign {
+	
+	public int id, price, amount;
+	public String item;
+	public Player p;
+	public Sign s;
+	
+	public AuctionSign(Player p, String item, int id, int price, int amount, Sign s) {
+		this.p = p;
+		this.item = item;
+		this.id = id;
+		this.price = price;
+		this.amount = amount;
+		this.s = s;
+		CrystalAuction.signs.add(this);
+	}
+	
 }
